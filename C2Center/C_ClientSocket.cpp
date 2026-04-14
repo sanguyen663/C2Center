@@ -103,7 +103,8 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 			CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 			if (pMainDlg != NULL)
 			{
-				pMainDlg->ProcessReceivedTrack(*pTrack);
+				// Truyền thêm m_strRadarIP vào trước *pTrack
+				pMainDlg->ProcessReceivedTrack(m_strRadarIP, *pTrack);
 			}
 		}
 	}

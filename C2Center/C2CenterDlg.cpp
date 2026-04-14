@@ -186,13 +186,42 @@ void CC2CenterDlg::AddToMonitor(CString strLog)
 	}
 }
 
-void CC2CenterDlg::ProcessReceivedTrack(AsterixTrack track)
+void CC2CenterDlg::ProcessReceivedTrack(CString strSourceIP, AsterixTrack track)
 {
-	// TODO: Tạm thời in ra Monitor để test. Bước sau ta sẽ vẽ lên bảng DlgTrack
+	// 1. In ra màn hình Giám sát
 	CString strLog;
-	strLog.Format(_T("[RX] Nhận quỹ đạo: %02d | Vị trí: %.4f - %.4f"),
-		track.nTrackNumber, track.fLat, track.fLon);
+	strLog.Format(_T("[RX] Nguồn: %s | Nhận quỹ đạo: %02d | Vị trí: %.4f - %.4f"),
+		strSourceIP, track.nTrackNumber, track.fLat, track.fLon);
 	AddToMonitor(strLog);
+
+	// 2. Tìm xem mục tiêu này của Radar này đã có trong Kho chứa chưa?
+	bool bFound = false;
+	for (size_t i = 0; i < m_listReceivedTracks.size(); i++)
+	{
+		if (m_listReceivedTracks[i].strRadarIP == strSourceIP &&
+			m_listReceivedTracks[i].trackData.nTrackNumber == track.nTrackNumber)
+		{
+			// Đã có -> Cập nhật thông số mới
+			m_listReceivedTracks[i].trackData = track;
+			bFound = true;
+			break;
+		}
+	}
+
+	// 3. Nếu chưa có -> Thêm mới vào Kho chứa
+	if (!bFound)
+	{
+		CenterTrack newTrack;
+		newTrack.strRadarIP = strSourceIP;
+		newTrack.trackData = track;
+		m_listReceivedTracks.push_back(newTrack);
+	}
+
+	// 4. Báo cho cửa sổ DlgTrack biết để nó vẽ lại bảng ngay lập tức
+	if (m_dlgTrack.GetSafeHwnd() != NULL)
+	{
+		m_dlgTrack.UpdateTrackList();
+	}
 }
 
 void CC2CenterDlg::OnBnClickedBtnSess()

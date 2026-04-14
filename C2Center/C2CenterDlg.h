@@ -9,6 +9,11 @@
 #include "C_ClientSocket.h"
 #include <vector>
 
+struct CenterTrack {
+	CString strRadarIP;
+	AsterixTrack trackData;
+};
+
 // CC2CenterDlg dialog
 class CC2CenterDlg : public CDialogEx
 {
@@ -22,13 +27,15 @@ public:
 	CC_ClientSocket m_ClientSocket;
 
 	// HÀM NHẬN DỮ LIỆU TỪ SOCKET
+	std::vector<CString> m_listConnectedIPs;
+	std::vector<CenterTrack> m_listReceivedTracks; // Kho chứa Quỹ đạo
+
 	void AddToMonitor(CString strLog);
-	void ProcessReceivedTrack(AsterixTrack track);
+	void ProcessReceivedTrack(CString strSourceIP, AsterixTrack track);
 
 	// Hàm dọn dẹp và Timer
 	afx_msg void OnDestroy();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
-	std::vector<CString> m_listConnectedIPs;
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_C2CENTER_DIALOG };
