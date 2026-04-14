@@ -108,8 +108,11 @@ void CDlgTrack::UpdateTrackList()
 {
 	CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 	if (pMainDlg == NULL) return;
-
-	m_ListTrack.DeleteAllItems();
+	m_ListTrack.SetRedraw(FALSE);
+	while (m_ListTrack.GetItemCount() < (int)pMainDlg->m_listReceivedTracks.size())
+	{
+		m_ListTrack.InsertItem(m_ListTrack.GetItemCount(), _T(""));
+	}
 
 	for (size_t i = 0; i < pMainDlg->m_listReceivedTracks.size(); i++)
 	{
@@ -136,6 +139,7 @@ void CDlgTrack::UpdateTrackList()
 		m_ListTrack.SetItemText(nItem, 6, strIden);              // Cột 6: Nhận dạng
 		m_ListTrack.SetItemText(nItem, 7, strStatus);               // Cột 7: Trạng thái
 	}
+	m_ListTrack.SetRedraw(TRUE);
 }
 
 BOOL CDlgTrack::OnInitDialog()

@@ -90,37 +90,31 @@ BOOL CDlgSess::OnInitDialog()
 void CDlgSess::OnBnClickedBtnDiscon()
 {
 	// TODO: Add your control notification handler code here
-	// 1. Lấy con trỏ đến cửa sổ chính của C2Center
+	// Lấy con trỏ về Main Dialog
 	CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 	if (pMainDlg == NULL) return;
 
-	// 2. Kiểm tra xem Socket có đang hoạt động hay không (Trạng thái khác 0)
+	// Kiểm tra trạng thái: Nếu đang kết nối (trạng thái 2) hoặc đang chờ (trạng thái 1)
 	if (pMainDlg->m_ClientSocket.m_nConnectionState != 0)
 	{
-		// Ghi log lên màn hình Monitor
-		CString strLog;
-		strLog.Format(_T("[SYSTEM] Chủ động ngắt kết nối với Radar %s"), pMainDlg->m_ClientSocket.m_strRadarIP);
-		pMainDlg->AddToMonitor(strLog);
-
-		// 3. Đóng Socket và reset trạng thái về 0 (Chưa kết nối)
+		// 1. Đóng kết nối mạng
 		pMainDlg->m_ClientSocket.Close();
 		pMainDlg->m_ClientSocket.m_nConnectionState = 0;
-		pMainDlg->m_ClientSocket.m_strRadarIP = _T(""); // Xóa IP cũ
 
-														// 4. Dọn dẹp kho chứa Quỹ đạo và cập nhật bảng DlgTrack cho trắng đi
+		// 2. Ghi log thông báo
+		pMainDlg->AddToMonitor(_T("[SYSTEM] Đã ngắt kết nối với Radar."));
+
+		// 3. Xóa dữ liệu cũ trên giao diện
 		pMainDlg->m_listReceivedTracks.clear();
-		if (pMainDlg->m_dlgTrack.GetSafeHwnd() != NULL)
-		{
+
+		// Cập nhật lại bảng Quỹ đạo (nếu đang mở)
+		if (pMainDlg->m_dlgTrack.GetSafeHwnd() != NULL) {
 			pMainDlg->m_dlgTrack.UpdateTrackList();
 		}
 
-		// 5. Vẽ lại bảng Phiên kết nối (lúc này sẽ không còn dòng nào vì trạng thái = 0)
+		// 4. Cập nhật lại chính bảng Session này
 		UpdateSessList();
 
-		AfxMessageBox(_T("Đã ngắt kết nối thành công!"), MB_ICONINFORMATION);
-	}
-	else
-	{
-		AfxMessageBox(_T("Hiện tại không có kết nối nào để ngắt!"), MB_ICONWARNING);
+		AfxMessageBox(_T("Đã ngắt kết nối!"));
 	}
 }
