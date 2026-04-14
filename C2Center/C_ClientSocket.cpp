@@ -16,12 +16,16 @@ CC_ClientSocket::~CC_ClientSocket()
 BOOL CC_ClientSocket::RequestConnect(CString strIP, UINT nPort, CString strUserID)
 {
 	m_strRadarIP = strIP;
-	m_nRadarPort = nPort; // Mặc định ban đầu là 10000
+	m_nRadarPort = nPort;
 	m_strMyUserID = strUserID;
+
+	// SỬA Ở ĐÂY: Đóng socket cũ trước khi tạo mới để tránh lỗi Bind
+	Close();
 
 	// Tạo cổng ngẫu nhiên ở máy cục bộ để kết nối đi
 	if (!Create(0, SOCK_DGRAM))
 	{
+		AfxMessageBox(_T("Lỗi khởi tạo mạng. Vui lòng thử lại!"));
 		return FALSE;
 	}
 
@@ -76,12 +80,15 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 					m_nRadarPort = _ttoi(strNewPort);
 					m_nConnectionState = 2; // KẾT NỐI THÀNH CÔNG!
 
-											// Báo cáo lên màn hình Monitor
+					// Báo cáo lên màn hình Monitor
 					CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 					if (pMainDlg != NULL)
 					{
+						// Thêm IP của Radar vừa kết nối vào danh sách quản lý
+						pMainDlg->m_listConnectedIPs.push_back(m_strRadarIP);
+
 						CString strLog;
-						strLog.Format(_T("[SYSTEM] Đã kết nối Radar! Cổng truyền dữ liệu: %d"), m_nRadarPort);
+						strLog.Format(_T("[SYSTEM] Radar %s đã sẵn sàng."), m_strRadarIP);
 						pMainDlg->AddToMonitor(strLog);
 					}
 				}

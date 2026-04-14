@@ -7,6 +7,7 @@
 #include "DlgSess.h"
 #include "DlgMonitor.h"
 #include "C_ClientSocket.h"
+#include <vector>
 
 // CC2CenterDlg dialog
 class CC2CenterDlg : public CDialogEx
@@ -27,6 +28,7 @@ public:
 	// Hàm dọn dẹp và Timer
 	afx_msg void OnDestroy();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	std::vector<CString> m_listConnectedIPs;
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_C2CENTER_DIALOG };

@@ -102,7 +102,9 @@ BOOL CC2CenterDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-
+	m_dlgSess.Create(IDD_SESS_DIALOG, this);
+	m_dlgTrack.Create(IDD_TRACK_DIALOG, this);
+	m_dlgMonitor.Create(IDD_MONITOR_DIALOG, this);
 	SetTimer(1, 5000, NULL);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -196,34 +198,22 @@ void CC2CenterDlg::ProcessReceivedTrack(AsterixTrack track)
 void CC2CenterDlg::OnBnClickedBtnSess()
 {
 	// TODO: Add your control notification handler code here
-	if (m_dlgSess.GetSafeHwnd() == NULL)
-	{
-		m_dlgSess.Create(IDD_SESS_DIALOG, this);
-	}
 	m_dlgSess.ShowWindow(SW_SHOW);
-	m_dlgSess.SetActiveWindow();
+	m_dlgSess.SetForegroundWindow();
 }
 
 
 void CC2CenterDlg::OnBnClickedBtnTrack()
 {
 	// TODO: Add your control notification handler code here
-	if (m_dlgTrack.GetSafeHwnd() == NULL)
-	{
-		m_dlgTrack.Create(IDD_TRACK_DIALOG, this);
-	}
 	m_dlgTrack.ShowWindow(SW_SHOW);
-	m_dlgTrack.SetActiveWindow();
+	m_dlgTrack.SetForegroundWindow();
 }
 
 
 void CC2CenterDlg::OnBnClickedBtnMonitor()
 {
 	// TODO: Add your control notification handler code here
-	if (m_dlgMonitor.GetSafeHwnd() == NULL)
-	{
-		m_dlgMonitor.Create(IDD_MONITOR_DIALOG, this);
-	}
 	m_dlgMonitor.ShowWindow(SW_SHOW);
-	m_dlgMonitor.SetActiveWindow();
+	m_dlgMonitor.SetForegroundWindow();
 }

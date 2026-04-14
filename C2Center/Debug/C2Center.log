@@ -1,12 +1,28 @@
 ﻿  DlgTrack.cpp
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(120): error C2039: 'm_listReceivedTracks': is not a member of 'CC2CenterDlg'
+  c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\c2centerdlg.h(13): note: see declaration of 'CC2CenterDlg'
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(120): error C2228: left of '.size' must have class/struct/union
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(122): error C2065: 'CenterTrack': undeclared identifier
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(122): error C2146: syntax error: missing ';' before identifier 'ct'
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(122): error C2065: 'ct': undeclared identifier
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(122): error C2039: 'm_listReceivedTracks': is not a member of 'CC2CenterDlg'
+  c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\c2centerdlg.h(13): note: see declaration of 'CC2CenterDlg'
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(125): error C2065: 'ct': undeclared identifier
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(125): error C2228: left of '.strRadarIP' must have class/struct/union
+  c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(125): note: type is 'unknown-type'
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(127): error C2065: 'ct': undeclared identifier
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(127): error C2228: left of '.trackData' must have class/struct/union
+  c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(127): note: type is 'unknown-type'
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(127): error C2530: 'trk': references must be initialized
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(139): error C2065: 'ct': undeclared identifier
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(139): error C2228: left of '.strRadarIP' must have class/struct/union
+  c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(139): note: type is 'unknown-type'
+c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(139): error C2664: 'int CListCtrl::InsertItem(UINT,int,LPCTSTR,UINT,UINT,int,LPARAM)': cannot convert argument 1 from 'int' to 'const LVITEMW *'
+  c:\users\hp\documents\visual studio 2015\projects\c2center\c2center\dlgtrack.cpp(139): note: Conversion from integral type to pointer type requires reinterpret_cast, C-style cast or function-style cast
+  C_ClientSocket.cpp
+  C2CenterDlg.cpp
   Generating Code...
   Compiling...
   DlgSess.cpp
-  C_ClientSocket.cpp
-  C2CenterDlg.cpp
   C2Center.cpp
   Generating Code...
-  Skipping... (no relevant changes detected)
-  DlgMonitor.cpp
-  C2Center.vcxproj -> C:\Users\HP\Documents\Visual Studio 2015\Projects\C2Center\Debug\C2Center.exe
-  C2Center.vcxproj -> C:\Users\HP\Documents\Visual Studio 2015\Projects\C2Center\Debug\C2Center.pdb (Partial PDB)
