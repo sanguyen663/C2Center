@@ -106,57 +106,81 @@ void CDlgTrack::OnLvnItemchangedListTrack(NMHDR *pNMHDR, LRESULT *pResult)
 
 void CDlgTrack::UpdateTrackList()
 {
-	// 1. Tắt tính năng vẽ tạm thời để chống giật (flicker) khi nạp nhiều dữ liệu
+	// Tắt vẽ lại (Redraw) tạm thời để nạp dữ liệu nhanh hơn và không bị giật
 	m_ListTrack.SetRedraw(FALSE);
 
-	// 2. Xóa sạch bảng cũ
-	m_ListTrack.DeleteAllItems();
+	m_ListTrack.DeleteAllItems(); // Xóa sạch dữ liệu cũ trên bảng
 
-	CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
-	if (pMainDlg != NULL)
+	int nItem = 0;
+	// Duyệt qua toàn bộ quỹ đạo đang lưu trong map (từ bước trước)
+	for (auto const& pair : m_mapTracks)
 	{
-		int nRow = 0;
-		// 3. Duyệt qua Kho chứa của Main Dialog
-		for (size_t i = 0; i < pMainDlg->m_listReceivedTracks.size(); i++)
-		{
-			CenterTrack ct = pMainDlg->m_listReceivedTracks[i];
+		AsterixTrack t = pair.second;
 
-			// 4. BỘ LỌC KỲ DIỆU: Chỉ vẽ nếu chọn "All" hoặc IP trùng với bộ lọc
-			if (m_strCurrentRadarFilter == _T("All") || m_strCurrentRadarFilter == ct.strRadarIP)
-			{
-				AsterixTrack& trk = ct.trackData;
+		// --- 1. Định dạng dữ liệu dạng chuỗi (CString) ---
+		CString strTN, strPos, strSpeedHdg, strAlti, strType, strIden, strStatus;
 
-				// Chuyển đổi dữ liệu sang dạng chuỗi
-				CString strTN, strPos, strHdgSpd, strAlti, strType, strIden;
-				strTN.Format(_T("%02d"), trk.nTrackNumber);
-				strPos.Format(_T("%.4f - %.4f"), trk.fLat, trk.fLon);
-				strHdgSpd.Format(_T("%.0f - %.0f"), trk.fHeading, trk.fSpeed);
-				strAlti.Format(_T("%.0f"), trk.fAltitude);
-				strType.Format(_T("%d"), trk.nType);
-				strIden = CA2T(trk.szIden);
+		strTN.Format(_T("%02d"), t.nTrackNumber);
+		strPos.Format(_T("%.4f - %.4f"), t.fLat, t.fLon);
+		strSpeedHdg.Format(_T("%.1f - %.1f"), t.fHeading, t.fSpeed);
+		strAlti.Format(_T("%.0f m"), t.fAltitude);
+		strType.Format(_T("%d"), t.nType);
 
-				// Đẩy lên bảng hiển thị (8 Cột theo thiết kế của bạn)
-				int nItem = m_ListTrack.InsertItem(nRow, ct.strRadarIP); // Cột 0: Radar
-				m_ListTrack.SetItemText(nItem, 1, strTN);                // Cột 1: TN
-				m_ListTrack.SetItemText(nItem, 2, strPos);               // Cột 2: Position
-				m_ListTrack.SetItemText(nItem, 3, strHdgSpd);            // Cột 3: Hdg-Spd
-				m_ListTrack.SetItemText(nItem, 4, strAlti);              // Cột 4: Alti
-				m_ListTrack.SetItemText(nItem, 5, strType);              // Cột 5: Type
-				m_ListTrack.SetItemText(nItem, 6, strIden);              // Cột 6: Iden
+		// Xử lý chuỗi char[] sang CString (Đề phòng chuỗi szIden không có ký tự kết thúc null)
+		strIden = CString(t.szIden, strnlen_s(t.szIden, 8));
 
-																		 // Cột 7: TQ (Tự làm giả một con số chất lượng tín hiệu)
-				m_ListTrack.SetItemText(nItem, 7, _T("99"));
+		// Diễn giải ký tự trạng thái (N: New, U: Update, D: Delete)
+		if (t.cStatus == 'N') strStatus = _T("Mới (New)");
+		else if (t.cStatus == 'U') strStatus = _T("Đang bám");
+		else if (t.cStatus == 'D') strStatus = _T("Mất dấu");
+		else strStatus = CString(t.cStatus);
 
-				nRow++;
-			}
-		}
+		// --- 2. Đẩy lên bảng UI ---
+		m_ListTrack.InsertItem(nItem, _T("RDR_01"));	   // [0] Nguồn
+		m_ListTrack.SetItemText(nItem, 1, strTN);          // [1] TN
+		m_ListTrack.SetItemText(nItem, 2, strPos);         // [2] Vị trí
+		m_ListTrack.SetItemText(nItem, 3, strSpeedHdg);    // [3] Hướng - Tốc độ
+		m_ListTrack.SetItemText(nItem, 4, strAlti);        // [4] Độ cao
+		m_ListTrack.SetItemText(nItem, 5, strType);        // [5] Loại
+		m_ListTrack.SetItemText(nItem, 6, strIden);        // [6] Nhận dạng
+		m_ListTrack.SetItemText(nItem, 7, strStatus);      // [7] Trạng thái
 
-		// Cập nhật dòng Text tổng số mục tiêu
-		CString strTotal;
-		strTotal.Format(_T("Tổng số mục tiêu đang bám: %d"), nRow);
-		SetDlgItemText(IDC_STATIC_INFO, strTotal); // Nhớ tạo ID IDC_STATIC_INFO cho dòng text này nhé
+		nItem++;
 	}
 
-	// 5. Bật lại tính năng vẽ
+	// Bật lại việc vẽ màn hình
 	m_ListTrack.SetRedraw(TRUE);
+}
+
+BOOL CDlgTrack::OnInitDialog()
+{
+	CDialogEx::OnInitDialog();
+
+	// 1. Cấu hình giao diện cho Bảng (List Control)
+	// LVS_EX_FULLROWSELECT: Click vào 1 ô là chọn bôi xanh cả dòng
+	// LVS_EX_GRIDLINES: Hiện đường kẻ lưới như Excel
+	// LVS_EX_DOUBLEBUFFER: Chống giật (flickering) khi cập nhật dữ liệu liên tục
+	m_ListTrack.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_DOUBLEBUFFER);
+
+	// 2. Tạo các cột (Giống hệt RadSim, thêm cột Nguồn)
+	// Cú pháp: InsertColumn(Cột_số, Tên_cột, Căn_lề, Độ_rộng)
+	m_ListTrack.InsertColumn(0, _T("Nguồn"), LVCFMT_CENTER, 60);
+	m_ListTrack.InsertColumn(1, _T("TN"), LVCFMT_CENTER, 40);
+	m_ListTrack.InsertColumn(2, _T("Vị trí (Lat - Lon)"), LVCFMT_CENTER, 100);
+	m_ListTrack.InsertColumn(3, _T("Hướng - Vận tốc"), LVCFMT_CENTER, 120);
+	m_ListTrack.InsertColumn(4, _T("Độ cao"), LVCFMT_CENTER, 50);
+	m_ListTrack.InsertColumn(5, _T("Loại"), LVCFMT_CENTER, 50);
+	m_ListTrack.InsertColumn(6, _T("Nhận dạng"), LVCFMT_CENTER, 80);
+	m_ListTrack.InsertColumn(7, _T("Trạng thái"), LVCFMT_CENTER, 90);
+
+	return TRUE;  // return TRUE unless you set the focus to a control
+}
+
+void CDlgTrack::ProcessNewTrack(AsterixTrack track)
+{
+	// Cập nhật hoặc chèn mới vào Map bằng số hiệu quỹ đạo
+	m_mapTracks[track.nTrackNumber] = track;
+
+	// Gọi hàm cập nhật giao diện
+	UpdateTrackList();
 }
