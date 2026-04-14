@@ -90,6 +90,9 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 						CString strLog;
 						strLog.Format(_T("[SYSTEM] Radar %s đã sẵn sàng."), m_strRadarIP);
 						pMainDlg->AddToMonitor(strLog);
+						if (pMainDlg->m_dlgSess.GetSafeHwnd() != NULL) {
+							pMainDlg->m_dlgSess.UpdateSessList(); // Gọi bảng cập nhật
+						}
 					}
 				}
 			}
@@ -99,11 +102,22 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 		{
 			AsterixTrack* pTrack = (AsterixTrack*)buffer;
 
-			// Gửi dữ liệu này lên Main Dialog để xử lý hiển thị
 			CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 			if (pMainDlg != NULL)
 			{
-				// Truyền thêm m_strRadarIP vào trước *pTrack
+				// --- ĐOẠN MỚI THÊM: CHUYỂN BUFFER SANG HEX ĐỂ IN LÊN MONITOR ---
+				CString strHex = _T("");
+				CString strTemp;
+				for (int i = 0; i < nBytes; i++)
+				{
+					strTemp.Format(_T("%02X "), (BYTE)buffer[i]);
+					strHex += strTemp;
+				}
+				CString strLog;
+				strLog.Format(_T("[RX from %s] %s"), m_strRadarIP, strHex);
+				pMainDlg->AddToMonitor(strLog);
+				// ---------------------------------------------------------------
+
 				pMainDlg->ProcessReceivedTrack(m_strRadarIP, *pTrack);
 			}
 		}

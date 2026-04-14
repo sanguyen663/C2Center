@@ -106,7 +106,7 @@ BOOL CC2CenterDlg::OnInitDialog()
 	m_dlgTrack.Create(IDD_TRACK_DIALOG, this);
 	m_dlgMonitor.Create(IDD_MONITOR_DIALOG, this);
 	SetTimer(1, 5000, NULL);
-
+	m_ClientSocket.RequestConnect(_T("127.0.0.1"), 10000, _T("CENTER_01"));
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -188,12 +188,7 @@ void CC2CenterDlg::AddToMonitor(CString strLog)
 
 void CC2CenterDlg::ProcessReceivedTrack(CString strSourceIP, AsterixTrack track)
 {
-	// 1. In ra màn hình Giám sát
-	CString strLog;
-	strLog.Format(_T("[RX] Nguồn: %s | Nhận quỹ đạo: %02d | Vị trí: %.4f - %.4f"),
-		strSourceIP, track.nTrackNumber, track.fLat, track.fLon);
-	AddToMonitor(strLog);
-
+	
 	// 2. Tìm xem mục tiêu này của Radar này đã có trong Kho chứa chưa?
 	bool bFound = false;
 	for (size_t i = 0; i < m_listReceivedTracks.size(); i++)

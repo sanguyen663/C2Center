@@ -25,6 +25,7 @@ CDlgSess::~CDlgSess()
 void CDlgSess::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_LIST_SESS, m_listSess);
 }
 
 
@@ -51,4 +52,36 @@ void CDlgSess::OnBnClickedBtnCon()
 			MessageBox(_T("Đã gửi yêu cầu kết nối!"), _T("Thông báo"), MB_OK);
 		}
 	}
+}
+
+void CDlgSess::UpdateSessList()
+{
+	CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
+	if (pMainDlg == NULL) return;
+
+	m_listSess.DeleteAllItems();
+
+	// Kiểm tra nếu Socket đang ở trạng thái đã kết nối
+	if (pMainDlg->m_ClientSocket.m_nConnectionState == 2)
+	{
+		CString strIP = pMainDlg->m_ClientSocket.m_strRadarIP;
+		CString strPort;
+		strPort.Format(_T("%d"), pMainDlg->m_ClientSocket.m_nRadarPort);
+
+		int nItem = m_listSess.InsertItem(0, _T("1"));
+		m_listSess.SetItemText(nItem, 1, strIP);        // Cột IP
+		m_listSess.SetItemText(nItem, 2, strPort);      // Cột Cổng đích
+		m_listSess.SetItemText(nItem, 3, _T("ACTIVE")); // Trạng thái
+	}
+}
+
+BOOL CDlgSess::OnInitDialog()
+{
+	CDialogEx::OnInitDialog();
+	m_listSess.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_DOUBLEBUFFER);
+	m_listSess.InsertColumn(0, _T("STT"), LVCFMT_CENTER, 50);
+	m_listSess.InsertColumn(1, _T("IP Radar"), LVCFMT_LEFT, 130);
+	m_listSess.InsertColumn(2, _T("Port"), LVCFMT_CENTER, 135);
+	m_listSess.InsertColumn(3, _T("Trạng thái"), LVCFMT_LEFT, 120);
+	return TRUE;
 }
