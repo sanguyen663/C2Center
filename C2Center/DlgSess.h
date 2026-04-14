@@ -24,4 +24,5 @@ protected:
 public:
 	afx_msg void OnBnClickedBtnCon();
 	CListCtrl m_listSess;
+	afx_msg void OnBnClickedBtnDiscon();
 };

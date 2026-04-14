@@ -67,6 +67,8 @@ BEGIN_MESSAGE_MAP(CC2CenterDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_SESS, &CC2CenterDlg::OnBnClickedBtnSess)
 	ON_BN_CLICKED(IDC_BTN_TRACK, &CC2CenterDlg::OnBnClickedBtnTrack)
 	ON_BN_CLICKED(IDC_BTN_MONITOR, &CC2CenterDlg::OnBnClickedBtnMonitor)
+	ON_WM_TIMER()
+	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
 

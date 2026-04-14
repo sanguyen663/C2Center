@@ -1,3 +1,12 @@
-﻿  DlgSess.cpp
+﻿  DlgTrack.cpp
+  DlgSess.cpp
+  Generating Code...
+  Compiling...
+  C_ClientSocket.cpp
+  C2CenterDlg.cpp
+  C2Center.cpp
+  Generating Code...
+  Skipping... (no relevant changes detected)
+  DlgMonitor.cpp
   C2Center.vcxproj -> C:\Users\HP\Documents\Visual Studio 2015\Projects\C2Center\Debug\C2Center.exe
   C2Center.vcxproj -> C:\Users\HP\Documents\Visual Studio 2015\Projects\C2Center\Debug\C2Center.pdb (Partial PDB)

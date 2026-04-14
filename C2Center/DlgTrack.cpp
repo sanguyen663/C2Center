@@ -129,7 +129,7 @@ void CDlgTrack::UpdateTrackList()
 
 		int nItem = m_ListTrack.InsertItem((int)i, strIP);      // Cột 0: Nguồn
 		m_ListTrack.SetItemText(nItem, 1, strTN);             // Cột 1: TN
-		m_ListTrack.SetItemText(nItem, 2, strLat + _T("",) + strLon);              // Cột 2: Lat - Lon
+		m_ListTrack.SetItemText(nItem, 2, strLat + _T(",") + strLon);              // Cột 2: Lat - Lon
 		m_ListTrack.SetItemText(nItem, 3, strHeading + _T(",") + strSpeed);              // Cột 3: Hướng - Vận tốc
 		m_ListTrack.SetItemText(nItem, 4, strAlt);            // Cột 4: Độ cao
 		m_ListTrack.SetItemText(nItem, 5, strType);          // Cột 5: Loại
