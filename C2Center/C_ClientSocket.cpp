@@ -101,64 +101,116 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 		else if (m_nConnectionState == 2)
 		{
 			// Kiểm tra nếu byte đầu tiên là 62 (CAT 062)
-			if (nBytes >= 5 && buffer[0] == 62)
+			if (nBytes >= 5 && (BYTE)buffer[0] == 62)
 			{
-				// Tính toán tổng chiều dài gói tin từ LEN
-				int packetLen = (buffer[1] << 8) | buffer[2];
+				int packetLen = ((BYTE)buffer[1] << 8) | (BYTE)buffer[2];
 
 				if (nBytes >= packetLen)
 				{
-					// --- ĐOẠN 1: IN LOG HEX LÊN MONITOR ---
 					CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 					if (pMainDlg != NULL)
 					{
-						CString strHex = _T("");
-						CString strTemp;
-						for (int i = 0; i < packetLen; i++)
-						{
-							strTemp.Format(_T("%02X "), buffer[i]);
+						// 1. In Log Hex lên Monitor
+						CString strHex = _T(""), strTemp;
+						for (int i = 0; i < packetLen; i++) {
+							strTemp.Format(_T("%02X "), (BYTE)buffer[i]);
 							strHex += strTemp;
 						}
 						CString strLog;
 						strLog.Format(_T("[RX from %s] %s"), m_strRadarIP, strHex);
 						pMainDlg->AddToMonitor(strLog);
 
-						// --- ĐOẠN 2: BÓC TÁCH DỮ LIỆU CAT 062 ---
-						// Tái tạo lại struct AsterixTrack để đưa vào hàm ProcessReceivedTrack
+						// 2. Bắt đầu giải mã cấu trúc FSPEC
+						int fspecLen = 0;
+						bool frnPresent[22] = { false }; // Ta chỉ cần check đến FRN 21 cho 3 byte FSPEC
+
+														 // Đọc FSPEC (tối đa 3 byte theo thiết kế hiện tại)
+						while (fspecLen < 3) {
+							BYTE b = (BYTE)buffer[3 + fspecLen];
+							for (int i = 1; i <= 7; i++) {
+								if ((b >> (8 - i)) & 1) frnPresent[(fspecLen * 7) + i] = true;
+							}
+							fspecLen++;
+							if ((b & 1) == 0) break; // FX bit = 0 thì dừng
+						}
+
+						int offset = 3 + fspecLen;
 						AsterixTrack trackData;
 						memset(&trackData, 0, sizeof(AsterixTrack));
 
-						// Kiểm tra FSPEC có đúng chuẩn ta vừa đóng gói (0xB9 0x80) không
-						if (buffer[3] == 0xB9 && buffer[4] == 0x80)
-						{
-							int offset = 5;
-
-							// Bỏ qua FRN1 (Nguồn) và FRN3 (Thời gian)
+						// 3. Giải mã chi tiết từng trường dựa trên cờ báo FSPEC
+						// FRN 1: I062/010 - Data Source Identifier (2 bytes)
+						if (frnPresent[1]) {
+							BYTE sac = (BYTE)buffer[offset];
+							BYTE sic = (BYTE)buffer[offset + 1];
+							// Kiểm tra SAC có phải 0x94 không (tùy chọn lọc dữ liệu)
 							offset += 2;
-							offset += 3;
-
-							// Lấy FRN 4: Số hiệu quỹ đạo (2 bytes)
-							// Thay ".nTrackID" bằng biến ID thực tế trong struct của bạn
-							int trackID = (buffer[offset] << 8) | buffer[offset + 1];
-							offset += 2;
-							// trackData.nTrackID = trackID; // Gán vào struct
-
-							// Bỏ qua FRN 5 (Vị trí) - Trong thực tế bạn sẽ giải mã ở đây
-							offset += 6;
-
-							// Lấy FRN 8: Độ cao (2 bytes)
-							int altitude = (buffer[offset] << 8) | buffer[offset + 1];
-							offset += 2;
-							// trackData.nAltitude = altitude; // Gán vào struct
 						}
 
-						// Đưa vào xử lý đồ họa
+						// FRN 4: I062/070 - Time of Track Information (3 bytes)
+						if (frnPresent[4]) offset += 3;
+
+						// FRN 5: I062/105 - Position in WGS-84 (8 bytes)
+						if (frnPresent[5]) {
+							int32_t latRaw = ((BYTE)buffer[offset] << 24) | ((BYTE)buffer[offset + 1] << 16) |
+								((BYTE)buffer[offset + 2] << 8) | (BYTE)buffer[offset + 3];
+							int32_t lonRaw = ((BYTE)buffer[offset + 4] << 24) | ((BYTE)buffer[offset + 5] << 16) |
+								((BYTE)buffer[offset + 6] << 8) | (BYTE)buffer[offset + 7];
+
+							double scalePos = 180.0 / 33554432.0; // 180 / 2^25
+							trackData.fLat = (float)(latRaw * scalePos);
+							trackData.fLon = (float)(lonRaw * scalePos);
+							offset += 8;
+						}
+
+						// FRN 7: I062/185 - Calculated Track Velocity (4 bytes)
+						if (frnPresent[7]) {
+							int16_t vxRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
+							trackData.fSpeed = (float)(vxRaw * 0.25); // LSB = 0.25 m/s
+							offset += 4;
+						}
+
+						// FRN 12: I062/040 - Track Number (2 bytes)
+						if (frnPresent[12]) {
+							trackData.nTrackNumber = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
+							offset += 2;
+						}
+
+						// FRN 13: I062/080 - Track Status (Variable)
+						if (frnPresent[13]) {
+							BYTE octet1 = (BYTE)buffer[offset];
+							if (octet1 & 1) { // Nếu FX=1, đọc tiếp Octet 2 để lấy cStatus
+								BYTE octet2 = (BYTE)buffer[offset + 1];
+								if (octet2 & 0x20) trackData.cStatus = 'N';      // TSB bit (bit 6)
+								else if (octet2 & 0x40) trackData.cStatus = 'D'; // TSE bit (bit 7)
+								else trackData.cStatus = 'U';
+								offset += 2;
+							}
+							else {
+								trackData.cStatus = 'U';
+								offset += 1;
+							}
+						}
+
+						// FRN 14: I062/290 - System Track Update Ages (Compound)
+						if (frnPresent[14]) {
+							// Trong code RadSim ta gửi 2 byte (Map 0x80 + 1 byte data)
+							offset += 2;
+						}
+
+						// FRN 18: I062/130 - Calculated Geometric Altitude (2 bytes)
+						if (frnPresent[18]) {
+							int16_t altRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
+							trackData.fAltitude = (float)(altRaw * 6.25); // LSB = 6.25 ft
+							offset += 2;
+						}
+
+						// 4. Đưa dữ liệu đã giải mã vào kho lưu trữ và hiển thị
 						pMainDlg->ProcessReceivedTrack(m_strRadarIP, trackData);
 					}
 				}
 			}
 		}
 	}
-
 	CAsyncSocket::OnReceive(nErrorCode);
 }
