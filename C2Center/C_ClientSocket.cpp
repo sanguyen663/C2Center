@@ -97,28 +97,65 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 				}
 			}
 		}
-		// TRƯỜNG HỢP 2: Đã kết nối và nhận được dữ liệu Quỹ đạo (Đúng kích thước struct)
-		else if (m_nConnectionState == 2 && nBytes == sizeof(AsterixTrack))
+		// TRƯỜNG HỢP 2: Đã kết nối và nhận được dữ liệu (Kiểm tra CAT 062)
+		else if (m_nConnectionState == 2)
 		{
-			AsterixTrack* pTrack = (AsterixTrack*)buffer;
-
-			CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
-			if (pMainDlg != NULL)
+			// Kiểm tra nếu byte đầu tiên là 62 (CAT 062)
+			if (nBytes >= 5 && buffer[0] == 62)
 			{
-				// --- ĐOẠN MỚI THÊM: CHUYỂN BUFFER SANG HEX ĐỂ IN LÊN MONITOR ---
-				CString strHex = _T("");
-				CString strTemp;
-				for (int i = 0; i < nBytes; i++)
-				{
-					strTemp.Format(_T("%02X "), (BYTE)buffer[i]);
-					strHex += strTemp;
-				}
-				CString strLog;
-				strLog.Format(_T("[RX from %s] %s"), m_strRadarIP, strHex);
-				pMainDlg->AddToMonitor(strLog);
-				// ---------------------------------------------------------------
+				// Tính toán tổng chiều dài gói tin từ LEN
+				int packetLen = (buffer[1] << 8) | buffer[2];
 
-				pMainDlg->ProcessReceivedTrack(m_strRadarIP, *pTrack);
+				if (nBytes >= packetLen)
+				{
+					// --- ĐOẠN 1: IN LOG HEX LÊN MONITOR ---
+					CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
+					if (pMainDlg != NULL)
+					{
+						CString strHex = _T("");
+						CString strTemp;
+						for (int i = 0; i < packetLen; i++)
+						{
+							strTemp.Format(_T("%02X "), buffer[i]);
+							strHex += strTemp;
+						}
+						CString strLog;
+						strLog.Format(_T("[RX from %s] %s"), m_strRadarIP, strHex);
+						pMainDlg->AddToMonitor(strLog);
+
+						// --- ĐOẠN 2: BÓC TÁCH DỮ LIỆU CAT 062 ---
+						// Tái tạo lại struct AsterixTrack để đưa vào hàm ProcessReceivedTrack
+						AsterixTrack trackData;
+						memset(&trackData, 0, sizeof(AsterixTrack));
+
+						// Kiểm tra FSPEC có đúng chuẩn ta vừa đóng gói (0xB9 0x80) không
+						if (buffer[3] == 0xB9 && buffer[4] == 0x80)
+						{
+							int offset = 5;
+
+							// Bỏ qua FRN1 (Nguồn) và FRN3 (Thời gian)
+							offset += 2;
+							offset += 3;
+
+							// Lấy FRN 4: Số hiệu quỹ đạo (2 bytes)
+							// Thay ".nTrackID" bằng biến ID thực tế trong struct của bạn
+							int trackID = (buffer[offset] << 8) | buffer[offset + 1];
+							offset += 2;
+							// trackData.nTrackID = trackID; // Gán vào struct
+
+							// Bỏ qua FRN 5 (Vị trí) - Trong thực tế bạn sẽ giải mã ở đây
+							offset += 6;
+
+							// Lấy FRN 8: Độ cao (2 bytes)
+							int altitude = (buffer[offset] << 8) | buffer[offset + 1];
+							offset += 2;
+							// trackData.nAltitude = altitude; // Gán vào struct
+						}
+
+						// Đưa vào xử lý đồ họa
+						pMainDlg->ProcessReceivedTrack(m_strRadarIP, trackData);
+					}
+				}
 			}
 		}
 	}
