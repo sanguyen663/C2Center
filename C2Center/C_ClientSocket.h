@@ -1,6 +1,6 @@
 #pragma once
 #include "afxsock.h"
-#pragma pack(push, 1) 
+
 struct AsterixTrack {
 	int nTrackNumber;      // Số hiệu quỹ đạo (TN)
 	float fLat;            // Vĩ độ
@@ -11,8 +11,8 @@ struct AsterixTrack {
 	int nType;             // Kiểu loại
 	char szIden[8];        // Nhận dạng (Ví dụ: "VN01")
 	char cStatus;          // Trạng thái: 'N' (New), 'U' (Upd), 'D' (Del)
+	int nQuality;		   // Chất lượng
 };
-#pragma pack(pop)
 
 class CC_ClientSocket :
 	public CAsyncSocket

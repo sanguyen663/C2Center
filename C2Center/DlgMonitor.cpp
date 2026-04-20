@@ -39,18 +39,55 @@ END_MESSAGE_MAP()
 
 void CDlgMonitor::AddLog(CString strLog)
 {
-	// NẾU ĐANG TẠM DỪNG -> KHÔNG LÀM GÌ CẢ
-	if (m_bIsPaused) return;
+	// 1. Lấy thời gian hiện tại
+	CTime currentTime = CTime::GetCurrentTime();
+	CString strTime = currentTime.Format(_T("[%H:%M:%S] "));
 
-	CTime time = CTime::GetCurrentTime();
-	CString strTime = time.Format(_T("[%H:%M:%S] "));
+	// 2. Thiết lập độ dài tối đa cho mỗi dòng (có thể tùy chỉnh)
+	int nMaxLength = 85;
+	int nLength = strLog.GetLength();
 
-	m_listLog.AddString(strTime + strLog);
+	if (m_listLog.GetSafeHwnd() == NULL) return;
 
+	// TRƯỜNG HỢP 1: Chuỗi ngắn -> In trên 1 dòng
+	if (nLength + strTime.GetLength() <= nMaxLength)
+	{
+		m_listLog.AddString(strTime + strLog);
+	}
+	// TRƯỜNG HỢP 2: Chuỗi dài -> Cắt thành nhiều dòng
+	else
+	{
+		int nOffset = 0;
+		bool bFirstLine = true;
+
+		while (nOffset < nLength)
+		{
+			if (bFirstLine)
+			{
+				// Dòng đầu tiên: Bị chiếm mất 11 ký tự bởi chuỗi thời gian
+				int nChunkSize = nMaxLength - strTime.GetLength();
+				CString strChunk = strLog.Mid(nOffset, nChunkSize);
+
+				m_listLog.AddString(strTime + strChunk);
+				nOffset += nChunkSize;
+				bFirstLine = false;
+			}
+			else
+			{
+				// Các dòng tiếp theo: Bỏ thụt lề, lấy trọn vẹn chiều rộng màn hình (nMaxLength)
+				CString strChunk = strLog.Mid(nOffset, nMaxLength);
+
+				m_listLog.AddString(strChunk); // Ghi thẳng, không thêm khoảng trắng
+				nOffset += nMaxLength;
+			}
+		}
+	}
+
+	// 3. Tự động cuộn xuống dòng mới nhất
 	int nCount = m_listLog.GetCount();
 	if (nCount > 0)
 	{
-		m_listLog.SetCurSel(nCount - 1);
+		m_listLog.SetTopIndex(nCount - 1);
 	}
 }
 

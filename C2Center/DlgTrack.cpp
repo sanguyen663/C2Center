@@ -108,39 +108,68 @@ void CDlgTrack::UpdateTrackList()
 {
 	CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 	if (pMainDlg == NULL) return;
-	m_ListTrack.SetRedraw(FALSE);
-	while (m_ListTrack.GetItemCount() < (int)pMainDlg->m_listReceivedTracks.size())
-	{
-		m_ListTrack.InsertItem(m_ListTrack.GetItemCount(), _T(""));
-	}
 
+	// Lặp qua danh sách mục tiêu nhận được từ Kho chứa
 	for (size_t i = 0; i < pMainDlg->m_listReceivedTracks.size(); i++)
 	{
 		AsterixTrack track = pMainDlg->m_listReceivedTracks[i].trackData;
 		CString strIP = pMainDlg->m_listReceivedTracks[i].strRadarIP;
 
-		CString strTN, strLat, strLon, strSpeed, strHeading, strAlt, strType;
-		strTN.Format(_T("%d"), track.nTrackNumber);
-		strLat.Format(_T("%.4f"), track.fLat);
-		strLon.Format(_T("%.4f"), track.fLon);
-		strSpeed.Format(_T("%.1f"), track.fSpeed);
-		strHeading.Format(_T("%.1f"), track.fHeading);
-		strAlt.Format(_T("%.1f"), track.fAltitude);
+		// 1. Format dữ liệu
+		CString strTN, strPos, strHdgSpd, strAlti, strType, strIden, strStatus, strTQ;
+		strTN.Format(_T("%02d"), track.nTrackNumber);
+		strPos.Format(_T("%.3f - %.3f"), track.fLat, track.fLon);
+		strHdgSpd.Format(_T("%.0f - %.0f"), track.fHeading, track.fSpeed);
+		strAlti.Format(_T("%.0f"), track.fAltitude);
 		strType.Format(_T("%d"), track.nType);
-		CString strStatus(track.cStatus);
-		CString strIden(track.szIden);
+		strTQ.Format(_T("%d"), track.nQuality);
+		strIden = CA2T(track.szIden);
 
-		int nItem = m_ListTrack.InsertItem((int)i, strIP);      // Cột 0: Nguồn
-		m_ListTrack.SetItemText(nItem, 1, strTN);             // Cột 1: TN
-		m_ListTrack.SetItemText(nItem, 2, strLat + _T("-") + strLon);              // Cột 2: Lat - Lon
-		m_ListTrack.SetItemText(nItem, 3, strHeading + _T(",") + strSpeed);              // Cột 3: Hướng - Vận tốc
-		m_ListTrack.SetItemText(nItem, 4, strAlt);            // Cột 4: Độ cao
-		m_ListTrack.SetItemText(nItem, 5, strType);          // Cột 5: Loại
-		m_ListTrack.SetItemText(nItem, 6, strIden);              // Cột 6: Nhận dạng
-		m_ListTrack.SetItemText(nItem, 7, strStatus);               // Cột 7: Trạng thái
+		if (track.cStatus == 'N') strStatus = _T("New");
+		else if (track.cStatus == 'D') strStatus = _T("Del");
+		else strStatus = _T("Upd");
+
+		// 2. KIỂM TRA MỤC TIÊU NÀY ĐÃ CÓ TRÊN BẢNG CHƯA
+		bool bFound = false;
+		int nRowCount = m_ListTrack.GetItemCount();
+
+		for (int row = 0; row < nRowCount; row++)
+		{
+			CString currentIP = m_ListTrack.GetItemText(row, 0);
+			CString currentTN = m_ListTrack.GetItemText(row, 1);
+			// Phải khớp cả IP của Radar và Số hiệu mục tiêu
+			if (currentIP == strIP && currentTN == strTN)
+			{
+				m_ListTrack.SetItemText(row, 0, strIP);
+				m_ListTrack.SetItemText(row, 1, strTN);
+				m_ListTrack.SetItemText(row, 2, strPos);
+				m_ListTrack.SetItemText(row, 3, strHdgSpd);
+				m_ListTrack.SetItemText(row, 4, strAlti);
+				m_ListTrack.SetItemText(row, 5, strType);
+				m_ListTrack.SetItemText(row, 6, strIden);
+				m_ListTrack.SetItemText(row, 7, strTQ);
+				m_ListTrack.SetItemText(row, 8, strStatus);
+				bFound = true; // Đánh dấu là đã tìm thấy và sửa xong
+				break;         // Thoát vòng lặp tìm kiếm
+			}
+		}
+		// 3. NẾU CHƯA CÓ TRÊN BẢNG -> IN THÊM DÒNG MỚI (InsertItem)
+		if (!bFound)
+		{
+			// Thêm vào dòng cuối cùng của bảng (nRowCount)
+			int nItem = m_ListTrack.InsertItem(nRowCount, strIP);
+			m_ListTrack.SetItemText(nItem, 1, strTN);
+			m_ListTrack.SetItemText(nItem, 2, strPos);
+			m_ListTrack.SetItemText(nItem, 3, strHdgSpd);
+			m_ListTrack.SetItemText(nItem, 4, strAlti);
+			m_ListTrack.SetItemText(nItem, 5, strType);
+			m_ListTrack.SetItemText(nItem, 6, strIden);
+			m_ListTrack.SetItemText(nItem, 7, strTQ);
+			m_ListTrack.SetItemText(nItem, 8, strStatus);
+		}
 	}
-	m_ListTrack.SetRedraw(TRUE);
 }
+
 
 BOOL CDlgTrack::OnInitDialog()
 {
@@ -155,7 +184,8 @@ BOOL CDlgTrack::OnInitDialog()
 	m_ListTrack.InsertColumn(4, _T("Độ cao"), LVCFMT_CENTER, 50);
 	m_ListTrack.InsertColumn(5, _T("Loại"), LVCFMT_CENTER, 50);
 	m_ListTrack.InsertColumn(6, _T("Nhận dạng"), LVCFMT_CENTER, 80);
-	m_ListTrack.InsertColumn(7, _T("Trạng thái"), LVCFMT_CENTER, 90);
+	m_ListTrack.InsertColumn(7, _T("TQ"), LVCFMT_CENTER, 20);
+	m_ListTrack.InsertColumn(8, _T("Trạng thái"), LVCFMT_CENTER, 90);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 }

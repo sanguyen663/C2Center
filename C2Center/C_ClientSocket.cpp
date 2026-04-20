@@ -122,10 +122,10 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 
 						// 2. Bắt đầu giải mã cấu trúc FSPEC
 						int fspecLen = 0;
-						bool frnPresent[22] = { false }; // Ta chỉ cần check đến FRN 21 cho 3 byte FSPEC
+						bool frnPresent[30] = { false }; // Ta chỉ cần check đến FRN 21 cho 3 byte FSPEC
 
-														 // Đọc FSPEC (tối đa 3 byte theo thiết kế hiện tại)
-						while (fspecLen < 3) {
+						// Đọc FSPEC (tối đa 3 byte theo thiết kế hiện tại)
+						while (fspecLen < 4) {
 							BYTE b = (BYTE)buffer[3 + fspecLen];
 							for (int i = 1; i <= 7; i++) {
 								if ((b >> (8 - i)) & 1) frnPresent[(fspecLen * 7) + i] = true;
@@ -163,10 +163,15 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 							offset += 8;
 						}
 
-						// FRN 7: I062/185 - Calculated Track Velocity (4 bytes)
-						if (frnPresent[7]) {
-							int16_t vxRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
-							trackData.fSpeed = (float)(vxRaw * 0.25); // LSB = 0.25 m/s
+						// FRN 11: I062/180 - Calculated Track Velocity Polar (4 bytes)
+						if (frnPresent[11]) {
+							uint16_t speedRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
+							uint16_t headingRaw = ((BYTE)buffer[offset + 2] << 8) | (BYTE)buffer[offset + 3];
+
+							// Đổi ngược lại thành số thập phân dựa theo LSB [cite: 567, 570]
+							trackData.fSpeed = (float)(speedRaw * 0.1f);
+							trackData.fHeading = (float)(headingRaw * (360.0f / 65536.0f));
+
 							offset += 4;
 						}
 
@@ -178,17 +183,31 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 
 						// FRN 13: I062/080 - Track Status (Variable)
 						if (frnPresent[13]) {
-							BYTE octet1 = (BYTE)buffer[offset];
-							if (octet1 & 1) { // Nếu FX=1, đọc tiếp Octet 2 để lấy cStatus
-								BYTE octet2 = (BYTE)buffer[offset + 1];
-								if (octet2 & 0x20) trackData.cStatus = 'N';      // TSB bit (bit 6)
-								else if (octet2 & 0x40) trackData.cStatus = 'D'; // TSE bit (bit 7)
+							BYTE octet1 = (BYTE)buffer[offset++];
+
+							if (octet1 & 1) { // Đọc Octet 2
+								BYTE octet2 = (BYTE)buffer[offset++];
+								if (octet2 & 0x20) trackData.cStatus = 'N';
+								else if (octet2 & 0x40) trackData.cStatus = 'D';
 								else trackData.cStatus = 'U';
-								offset += 2;
+
+								if (octet2 & 1) { // Đọc Octet 3
+									BYTE octet3 = (BYTE)buffer[offset++];
+
+									if (octet3 & 1) { // Đọc Octet 4 (Chứa Loại Mục Tiêu) [cite: 586, 587]
+										BYTE octet4 = (BYTE)buffer[offset++];
+										// Giải mã Target Type từ bit 5->2
+										trackData.nType = (octet4 >> 1) & 0x0F;
+
+										// Bỏ qua các Octet mở rộng thừa nếu có
+										while (octet4 & 1) {
+											octet4 = (BYTE)buffer[offset++];
+										}
+									}
+								}
 							}
 							else {
 								trackData.cStatus = 'U';
-								offset += 1;
 							}
 						}
 
@@ -203,6 +222,42 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 							int16_t altRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
 							trackData.fAltitude = (float)(altRaw * 6.25); // LSB = 6.25 ft
 							offset += 2;
+						}
+						
+						// FRN 24: I062/245 - Target Identification (7 bytes)
+						if (frnPresent[24]) {
+							offset++; // Nhảy qua byte STI
+							uint64_t encoded = 0;
+							for (int i = 0; i < 6; i++) {
+								encoded = (encoded << 8) | (BYTE)buffer[offset++];
+							}
+
+							char temp[9];
+							memset(temp, 0, 9); // BẮT BUỘC: Xóa trắng biến tạm
+
+							for (int i = 7; i >= 0; i--) {
+								uint8_t val = (uint8_t)(encoded & 0x3F);
+								encoded >>= 6;
+								if (val >= 1 && val <= 26) temp[i] = val + 64; // A-Z
+								else if (val >= 48 && val <= 57) temp[i] = val; // 0-9
+								else temp[i] = ' '; // Khoảng trắng
+							}
+
+							// Cắt bỏ khoảng trắng thừa ở cuối
+							for (int i = 7; i >= 0; i--) {
+								if (temp[i] == ' ') temp[i] = '\0';
+								else break;
+							}
+
+							// Xóa sạch trường szIden trong struct trước khi copy
+							memset(trackData.szIden, 0, sizeof(trackData.szIden));
+							strcpy_s(trackData.szIden, temp);
+						}
+
+						// FRN 26: I062/501 - Track Quality (1 byte)
+						if (frnPresent[26]) {
+							// Đọc 1 byte ra và gán vào biến nQuality
+							trackData.nQuality = (BYTE)buffer[offset++];
 						}
 
 						// 4. Đưa dữ liệu đã giải mã vào kho lưu trữ và hiển thị
