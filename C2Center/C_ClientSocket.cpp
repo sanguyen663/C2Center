@@ -80,7 +80,7 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 					m_nRadarPort = _ttoi(strNewPort);
 					m_nConnectionState = 2; // KẾT NỐI THÀNH CÔNG!
 
-					// Báo cáo lên màn hình Monitor
+											// Báo cáo lên màn hình Monitor
 					CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 					if (pMainDlg != NULL)
 					{
@@ -122,9 +122,9 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 
 						// 2. Bắt đầu giải mã cấu trúc FSPEC
 						int fspecLen = 0;
-						bool frnPresent[30] = { false }; // Ta chỉ cần check đến FRN 21 cho 3 byte FSPEC
+						bool frnPresent[30] = { false };
 
-						// Đọc FSPEC (tối đa 3 byte theo thiết kế hiện tại)
+						// Đọc FSPEC (tối đa 4 byte theo thiết kế)
 						while (fspecLen < 4) {
 							BYTE b = (BYTE)buffer[3 + fspecLen];
 							for (int i = 1; i <= 7; i++) {
@@ -138,103 +138,55 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 						AsterixTrack trackData;
 						memset(&trackData, 0, sizeof(AsterixTrack));
 
-						// 3. Giải mã chi tiết từng trường dựa trên cờ báo FSPEC
-						// FRN 1: I062/010 - Data Source Identifier (2 bytes)
+						// 3. Giải mã chi tiết từng trường dựa trên cờ báo FSPEC (Thứ tự tăng dần theo đặc tả)
+
+						// FRN 1: I062/010 - Tên nguồn dữ liệu (2 bytes)
 						if (frnPresent[1]) {
-							BYTE sac = (BYTE)buffer[offset];
-							BYTE sic = (BYTE)buffer[offset + 1];
-							// Kiểm tra SAC có phải 0x94 không (tùy chọn lọc dữ liệu)
 							offset += 2;
 						}
 
-						// FRN 4: I062/070 - Time of Track Information (3 bytes)
-						if (frnPresent[4]) offset += 3;
-
-						// FRN 5: I062/105 - Position in WGS-84 (8 bytes)
-						if (frnPresent[5]) {
-							int32_t latRaw = ((BYTE)buffer[offset] << 24) | ((BYTE)buffer[offset + 1] << 16) |
-								((BYTE)buffer[offset + 2] << 8) | (BYTE)buffer[offset + 3];
-							int32_t lonRaw = ((BYTE)buffer[offset + 4] << 24) | ((BYTE)buffer[offset + 5] << 16) |
-								((BYTE)buffer[offset + 6] << 8) | (BYTE)buffer[offset + 7];
-
-							double scalePos = 180.0 / 33554432.0; // 180 / 2^25
-							trackData.fLat = (float)(latRaw * scalePos);
-							trackData.fLon = (float)(lonRaw * scalePos);
-							offset += 8;
+						// FRN 3: I062/070 - Thời gian thông tin quỹ đạo (3 bytes)
+						if (frnPresent[3]) {
+							offset += 3;
 						}
 
-						// FRN 11: I062/180 - Calculated Track Velocity Polar (4 bytes)
-						if (frnPresent[11]) {
-							uint16_t speedRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
-							uint16_t headingRaw = ((BYTE)buffer[offset + 2] << 8) | (BYTE)buffer[offset + 3];
-
-							// Đổi ngược lại thành số thập phân dựa theo LSB [cite: 567, 570]
-							trackData.fSpeed = (float)(speedRaw * 0.1f);
-							trackData.fHeading = (float)(headingRaw * (360.0f / 65536.0f));
-
-							offset += 4;
-						}
-
-						// FRN 12: I062/040 - Track Number (2 bytes)
-						if (frnPresent[12]) {
+						// FRN 4: I062/040 - Số hiệu quỹ đạo (2 bytes)
+						if (frnPresent[4]) {
 							trackData.nTrackNumber = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
 							offset += 2;
 						}
 
-						// FRN 13: I062/080 - Track Status (Variable)
-						if (frnPresent[13]) {
-							BYTE octet1 = (BYTE)buffer[offset++];
+						// FRN 5: I062/105 - Vị trí WGS-84 (6 bytes, LSB = 180 / 2^23)
+						if (frnPresent[5]) {
+							int32_t latRaw = ((BYTE)buffer[offset] << 16) | ((BYTE)buffer[offset + 1] << 8) | (BYTE)buffer[offset + 2];
+							if (latRaw & 0x800000) latRaw |= 0xFF000000; // Sign extension
 
-							if (octet1 & 1) { // Đọc Octet 2
-								BYTE octet2 = (BYTE)buffer[offset++];
-								if (octet2 & 0x20) trackData.cStatus = 'N';
-								else if (octet2 & 0x40) trackData.cStatus = 'D';
-								else trackData.cStatus = 'U';
+							int32_t lonRaw = ((BYTE)buffer[offset + 3] << 16) | ((BYTE)buffer[offset + 4] << 8) | (BYTE)buffer[offset + 5];
+							if (lonRaw & 0x800000) lonRaw |= 0xFF000000; // Sign extension
 
-								if (octet2 & 1) { // Đọc Octet 3
-									BYTE octet3 = (BYTE)buffer[offset++];
-
-									if (octet3 & 1) { // Đọc Octet 4 (Chứa Loại Mục Tiêu) [cite: 586, 587]
-										BYTE octet4 = (BYTE)buffer[offset++];
-										// Giải mã Target Type từ bit 5->2
-										trackData.nType = (octet4 >> 1) & 0x0F;
-
-										// Bỏ qua các Octet mở rộng thừa nếu có
-										while (octet4 & 1) {
-											octet4 = (BYTE)buffer[offset++];
-										}
-									}
-								}
-							}
-							else {
-								trackData.cStatus = 'U';
-							}
+							double scalePos = 180.0 / 8388608.0;
+							trackData.fLat = (float)(latRaw * scalePos);
+							trackData.fLon = (float)(lonRaw * scalePos);
+							offset += 6;
 						}
 
-						// FRN 14: I062/290 - System Track Update Ages (Compound)
-						if (frnPresent[14]) {
-							// Trong code RadSim ta gửi 2 byte (Map 0x80 + 1 byte data)
-							offset += 2;
-						}
-
-						// FRN 18: I062/130 - Calculated Geometric Altitude (2 bytes)
-						if (frnPresent[18]) {
+						// FRN 8: I062/130 - Độ cao quỹ đạo tính toán (2 bytes, LSB = 2m)
+						if (frnPresent[8]) {
 							int16_t altRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
-							trackData.fAltitude = (float)(altRaw * 6.25); // LSB = 6.25 ft
+							trackData.fAltitude = (float)(altRaw * 2.0);
 							offset += 2;
 						}
-						
-						// FRN 24: I062/245 - Target Identification (7 bytes)
-						if (frnPresent[24]) {
-							offset++; // Nhảy qua byte STI
+
+						// FRN 10: I062/245 - Target Identification (7 bytes)
+						if (frnPresent[10]) {
+							offset++; // Bỏ qua 1 byte STI
 							uint64_t encoded = 0;
 							for (int i = 0; i < 6; i++) {
 								encoded = (encoded << 8) | (BYTE)buffer[offset++];
 							}
 
 							char temp[9];
-							memset(temp, 0, 9); // BẮT BUỘC: Xóa trắng biến tạm
-
+							memset(temp, 0, 9);
 							for (int i = 7; i >= 0; i--) {
 								uint8_t val = (uint8_t)(encoded & 0x3F);
 								encoded >>= 6;
@@ -243,20 +195,71 @@ void CC_ClientSocket::OnReceive(int nErrorCode)
 								else temp[i] = ' '; // Khoảng trắng
 							}
 
-							// Cắt bỏ khoảng trắng thừa ở cuối
 							for (int i = 7; i >= 0; i--) {
 								if (temp[i] == ' ') temp[i] = '\0';
 								else break;
 							}
 
-							// Xóa sạch trường szIden trong struct trước khi copy
 							memset(trackData.szIden, 0, sizeof(trackData.szIden));
 							strcpy_s(trackData.szIden, temp);
 						}
 
-						// FRN 26: I062/501 - Track Quality (1 byte)
+						// FRN 11: I062/180 - Vận tốc cực (4 bytes)
+						if (frnPresent[11]) {
+							uint16_t speedRaw = ((BYTE)buffer[offset] << 8) | (BYTE)buffer[offset + 1];
+							uint16_t headingRaw = ((BYTE)buffer[offset + 2] << 8) | (BYTE)buffer[offset + 3];
+
+							trackData.fSpeed = (float)(speedRaw * 0.1f);
+							trackData.fHeading = (float)(headingRaw * (360.0f / 65536.0f));
+							offset += 4;
+						}
+
+						// FRN 16: I062/080 - Trạng thái quỹ đạo (Biến đổi)
+						if (frnPresent[16]) {
+							BYTE octet1 = (BYTE)buffer[offset++];
+							if (octet1 & 1) { // Có Ext 1
+								BYTE octet2 = (BYTE)buffer[offset++];
+								if (octet2 & 0x20) trackData.cStatus = 'N';
+								else if (octet2 & 0x40) trackData.cStatus = 'D';
+								else trackData.cStatus = 'U';
+
+								if (octet2 & 1) { // Có Ext 2
+									BYTE octet3 = (BYTE)buffer[offset++];
+									if (octet3 & 1) { // Có Ext 3
+										BYTE octet4 = (BYTE)buffer[offset++];
+										trackData.nType = (octet4 >> 1) & 0x0F; // Dịch 1 bit lấy Loại MT
+																				// Bỏ qua các byte thừa nếu có
+										while (octet4 & 1) octet4 = (BYTE)buffer[offset++];
+									}
+								}
+							}
+							else {
+								trackData.cStatus = 'U';
+							}
+						}
+
+						// FRN 17: I062/290 - Tuổi quỹ đạo (Biến đổi - Compound)
+						if (frnPresent[17]) {
+							BYTE primary = (BYTE)buffer[offset++];
+							BYTE ext = 0;
+							if (primary & 1) ext = (BYTE)buffer[offset++];
+
+							// Đẩy offset đi qua các subfields theo bit bật
+							if (primary & 0x80) offset += 1; // PSR age
+							if (primary & 0x40) offset += 1; // SSR age
+							if (primary & 0x20) offset += 1; // MDA age
+							if (primary & 0x10) offset += 1; // MFL age
+							if (primary & 0x08) offset += 1; // MDS age
+							if (primary & 0x04) offset += 1; // ADS age
+							if (primary & 0x02) offset += 1; // ADB age
+							if (ext & 0x80) offset += 1; // MD1 age
+							if (ext & 0x40) offset += 1; // MD2 age
+
+							while (ext & 1) ext = (BYTE)buffer[offset++]; // Bỏ qua nếu còn
+						}
+
+						// FRN 26: I062/501 - Chất lượng quỹ đạo (1 byte)
 						if (frnPresent[26]) {
-							// Đọc 1 byte ra và gán vào biến nQuality
 							trackData.nQuality = (BYTE)buffer[offset++];
 						}
 
