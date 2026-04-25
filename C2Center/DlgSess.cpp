@@ -41,16 +41,44 @@ END_MESSAGE_MAP()
 void CDlgSess::OnBnClickedBtnCon()
 {
 	// TODO: Add your control notification handler code here
-	CString strIP = _T("127.0.0.1"); // Nhập IP của máy chạy RadSim (127.0.0.1 nếu chạy cùng máy)
-	UINT nPort = 10000;
-	CString strUserID = _T("TT_01");
+	// 1. Khai báo biến và lấy dữ liệu từ các ô nhập liệu (Edit Control)
+	CString strIP;
+	CString strPort;
+	CString strUserID;
 
+	// Đọc dữ liệu từ giao diện (Nhớ thay các IDC_ tương ứng với ID bạn đã đặt trên Dialog)
+	GetDlgItemText(IDC_EDIT_IP, strIP);
+	GetDlgItemText(IDC_EDIT_PORT, strPort);
+	GetDlgItemText(IDC_EDIT_ID, strUserID);
+
+	// 2. Kiểm tra xem người dùng đã nhập đủ thông tin chưa
+	if (strIP.IsEmpty() || strPort.IsEmpty() || strUserID.IsEmpty())
+	{
+		MessageBox(_T("Vui lòng nhập đầy đủ IP, Port và UserID trước khi kết nối!"), _T("Lỗi dữ liệu"), MB_ICONWARNING);
+		return; // Dừng lại, không thực hiện kết nối
+	}
+
+	// Chuyển đổi Port từ chuỗi (CString) sang số nguyên (UINT)
+	UINT nPort = _ttoi(strPort);
+
+	// Kiểm tra tính hợp lệ của Port
+	if (nPort <= 0 || nPort > 65535)
+	{
+		MessageBox(_T("Cổng (Port) không hợp lệ! Vui lòng nhập số từ 1 đến 65535."), _T("Lỗi dữ liệu"), MB_ICONWARNING);
+		return;
+	}
+
+	// 3. Thực hiện gửi yêu cầu kết nối
 	CC2CenterDlg* pMainDlg = (CC2CenterDlg*)AfxGetMainWnd();
 	if (pMainDlg != NULL)
 	{
 		if (pMainDlg->m_ClientSocket.RequestConnect(strIP, nPort, strUserID))
 		{
 			MessageBox(_T("Đã gửi yêu cầu kết nối!"), _T("Thông báo"), MB_OK);
+		}
+		else
+		{
+			MessageBox(_T("Gửi yêu cầu kết nối thất bại! Vui lòng kiểm tra lại mạng."), _T("Lỗi"), MB_ICONERROR);
 		}
 	}
 }
